@@ -73,7 +73,16 @@ h1{font-size:42px;font-weight:800;text-align:center;margin-bottom:6px}
 <!-- EXPENSES -->
 <div class="card" id="expenseCard">
 <h2>🍕 Food &amp; Expenses</h2>
-<div class="row" id="expenseRow"></div>
+<div class="row" id="expenseRow">
+<div class="field" style="flex:1"><label>Name</label><input type="text" id="ename0" value="" placeholder="Name" onfocus="this.select()" oninput="save()"></div>
+<div class="field" style="flex:.6"><label>$ Spent</label><input type="number" id="exp0" value="0" min="0" placeholder="$0" class="gold" onfocus="this.select()" oninput="updateExp()"></div>
+<div class="field" style="flex:1"><label>Name</label><input type="text" id="ename1" value="" placeholder="Name" onfocus="this.select()" oninput="save()"></div>
+<div class="field" style="flex:.6"><label>$ Spent</label><input type="number" id="exp1" value="0" min="0" placeholder="$0" class="gold" onfocus="this.select()" oninput="updateExp()"></div>
+<div class="field" style="flex:1"><label>Name</label><input type="text" id="ename2" value="" placeholder="Name" onfocus="this.select()" oninput="save()"></div>
+<div class="field" style="flex:.6"><label>$ Spent</label><input type="number" id="exp2" value="0" min="0" placeholder="$0" class="gold" onfocus="this.select()" oninput="updateExp()"></div>
+<div class="field" style="flex:1"><label>Name</label><input type="text" id="ename3" value="" placeholder="Name" onfocus="this.select()" oninput="save()"></div>
+<div class="field" style="flex:.6"><label>$ Spent</label><input type="number" id="exp3" value="0" min="0" placeholder="$0" class="gold" onfocus="this.select()" oninput="updateExp()"></div>
+</div>
 <div style="text-align:center;margin-top:8px">
 <span style="font-size:22px;font-weight:800">Total: $<span id="totalExp">0</span></span>
 <span style="margin-left:20px;font-size:18px;color:var(--dim)">Per game: $<span id="perGame">0</span></span>
@@ -117,14 +126,7 @@ const TRUMP=[];for(let i=1;i<=8;i++)TRUMP.push({id:'koz'+i,name:'Koz '+i,unit:'+
 const ALL=[...NEG,...TRUMP];
 const games=[{rows:{}},{rows:{}}];
 
-// Build expense inputs
-function buildExpenses(){
-const r=document.getElementById('expenseRow');
-for(let p=0;p<4;p++){
-const d=document.createElement('div');d.className='field';
-d.innerHTML=`<label id="elbl${p}">Player ${p+1}</label><input type="number" id="exp${p}" value="0" min="0" placeholder="$0" class="gold" onfocus="this.select()" oninput="updateExp()">`;
-r.appendChild(d);
-}}
+// Expenses are built in HTML now
 
 function updateExp(){
 let t=0;for(let p=0;p<4;p++)t+=Math.max(0,parseInt(document.getElementById('exp'+p).value)||0);
@@ -138,7 +140,7 @@ function buildGame(gi){
 const container=document.getElementById('tc'+gi);
 const tbl=document.createElement('table');tbl.className='grid-table';
 let h='<thead><tr><th style="min-width:160px">Contract</th>';
-for(let p=0;p<4;p++)h+=`<th class="pname" data-p="${p}">Player ${p+1}</th>`;
+for(let p=0;p<4;p++)h+=`<th style="padding:0"><input type="text" id="g${gi}_name${p}" value="Player ${p+1}" placeholder="Player ${p+1}" style="width:100%;padding:14px 8px;background:rgba(0,0,0,.4);border:none;color:var(--gold);font-family:var(--font);font-size:22px;font-weight:800;text-align:center" onfocus="this.select()" oninput="save()"></th>`;
 h+='<th style="width:80px"></th></tr></thead><tbody>';
 h+='<tr class="section-row"><td colspan="6">❌ NEGATIVES</td></tr>';
 NEG.forEach(c=>{h+=mkRow(gi,c)});
@@ -261,13 +263,16 @@ document.getElementById('tab'+gi).innerHTML=`🎮 Game ${gi+1} <span style="font
 
 // Settlement
 function calcSettle(){
-const names=[];const spent=[];
+const enames=[];const spent=[];
 for(let p=0;p<4;p++){
-names.push(document.getElementById('elbl'+p).textContent);
+enames.push(document.getElementById('ename'+p).value||'Person '+(p+1));
 spent.push(Math.max(0,parseInt(document.getElementById('exp'+p).value)||0));
 }
 const totalExp=spent.reduce((a,b)=>a+b,0);
 if(totalExp===0){document.getElementById('settleResult').innerHTML='<p style="color:var(--red);font-size:20px">Enter food expenses first!</p>';return}
+// Get game player names
+const gnames=[[],[]];
+for(let gi=0;gi<2;gi++)for(let p=0;p<4;p++)gnames[gi].push(document.getElementById('g'+gi+'_name'+p).value||'Player '+(p+1));
 const g1p=getGameProgress(0),g2p=getGameProgress(1);
 let warnHtml='';
 if(g1p<20||g2p<20){
@@ -300,7 +305,7 @@ const bals=[];
 for(let p=0;p<4;p++){let s=0;Object.values(games[gi].rows).forEach(rd=>{if(rd.locked)s+=rd.scores[p]});bals.push(s)}
 for(let p=0;p<4;p++){
 const tag=bals[p]<0?'l':'w';
-html+=`<span style="margin:0 8px;font-size:18px">${names[p]}: <strong style="color:${bals[p]<0?'var(--red)':'var(--green)'}">${bals[p]>0?'+':''}${bals[p]}</strong><span class="winner-tag ${tag}">${tag==='w'?'WIN':'LOSE'}</span></span>`;
+html+=`<span style="margin:0 8px;font-size:18px">${gnames[gi][p]}: <strong style="color:${bals[p]<0?'var(--red)':'var(--green)'}">${bals[p]>0?'+':''}${bals[p]}</strong><span class="winner-tag ${tag}">${tag==='w'?'WIN':'LOSE'}</span></span>`;
 }
 const losers=bals.map((b,i)=>b<0?i:-1).filter(i=>i>=0);
 html+=`<br><span style="font-size:16px;color:var(--dim)">${losers.length} loser(s) × $${(perGame/Math.max(1,losers.length)).toFixed(2)} each</span></div>`;
@@ -313,7 +318,7 @@ html+='<div class="settle-item even">✅ Everyone is even!</div>';
 const d=[...debtors];const c=[...creditors];
 while(d.length&&c.length){
 const pay=Math.min(d[0].amt,c[0].amt);
-html+=`<div class="settle-item owes">💸 ${names[d[0].i]} owes ${names[c[0].i]} <strong>$${pay.toFixed(2)}</strong></div>`;
+html+=`<div class="settle-item owes">💸 ${enames[d[0].i]} owes ${enames[c[0].i]} <strong>$${pay.toFixed(2)}</strong></div>`;
 d[0].amt-=pay;c[0].amt-=pay;
 if(d[0].amt<0.01)d.shift();
 if(c[0].amt<0.01)c.shift();
@@ -322,40 +327,26 @@ if(c[0].amt<0.01)c.shift();
 document.getElementById('settleResult').innerHTML=html;
 }
 
-// Player name editing
-function setupNames(){
-const labels=document.querySelectorAll('[id^="elbl"]');
-labels.forEach((lbl,i)=>{
-lbl.style.cursor='pointer';lbl.title='Click to edit name';
-lbl.onclick=()=>{
-const n=prompt('Player '+(i+1)+' name:',lbl.textContent);
-if(n&&n.trim()){
-lbl.textContent=n.trim();
-document.querySelectorAll('.pname[data-p="'+i+'"]').forEach(th=>{th.textContent=n.trim()});
-save();
-}};
-});
-}
+// Names are now input fields, no setup needed
 
 // Save/Load
 function save(){
-const st={names:[],expenses:[],games:[[],[]]};
-for(let p=0;p<4;p++){st.names.push(document.getElementById('elbl'+p).textContent);st.expenses.push(document.getElementById('exp'+p).value)}
+const st={enames:[],expenses:[],gnames:[[],[]],games:[[],[]]};
+for(let p=0;p<4;p++){st.enames.push(document.getElementById('ename'+p).value);st.expenses.push(document.getElementById('exp'+p).value)}
 for(let gi=0;gi<2;gi++){
+for(let p=0;p<4;p++)st.gnames[gi].push(document.getElementById('g'+gi+'_name'+p).value);
 Object.entries(games[gi].rows).forEach(([id,rd])=>{if(rd.locked)st.games[gi].push([id,rd.counts])});
 }
-localStorage.setItem('rifki_night',JSON.stringify(st));
+localStorage.setItem('rifki_night2',JSON.stringify(st));
 }
 
 function load(){
-const raw=localStorage.getItem('rifki_night');if(!raw)return;
+const raw=localStorage.getItem('rifki_night2');if(!raw)return;
 try{
 const st=JSON.parse(raw);
-if(st.names)st.names.forEach((n,i)=>{
-document.getElementById('elbl'+i).textContent=n;
-document.querySelectorAll('.pname[data-p="'+i+'"]').forEach(th=>{th.textContent=n});
-});
+if(st.enames)st.enames.forEach((n,i)=>{document.getElementById('ename'+i).value=n});
 if(st.expenses)st.expenses.forEach((v,i)=>{document.getElementById('exp'+i).value=v});
+if(st.gnames)st.gnames.forEach((names,gi)=>{names.forEach((n,p)=>{const el=document.getElementById('g'+gi+'_name'+p);if(el)el.value=n})});
 updateExp();
 if(st.games){
 st.games.forEach((g,gi)=>{
@@ -370,7 +361,7 @@ enterR(rid,gi,cid);
 }
 
 // Init
-buildExpenses();buildGame(0);buildGame(1);setupNames();load();
+buildGame(0);buildGame(1);load();
 </script>
 </body>
 </html>
