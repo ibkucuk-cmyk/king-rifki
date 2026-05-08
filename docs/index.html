@@ -255,7 +255,8 @@ el.className=bal>0?'bal-pos':bal<0?'bal-neg':'bal-zero';
 }
 
 function resetGame(gi){
-if(!confirm('Reset Game '+(gi+1)+'?'))return;
+const answer=prompt('⚠️ Are you sure you want to reset Game '+(gi+1)+'?\n\nType RESET and press Enter to confirm:');
+if(!answer||answer.trim().toLowerCase()!=='reset')return;
 ALL.forEach(c=>{
 const rid=`g${gi}_${c.id}`;
 const rd=games[gi].rows[c.id];rd.locked=false;rd.counts=[0,0,0,0];rd.scores=[0,0,0,0];
