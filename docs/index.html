@@ -1,447 +1,362 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rıfkı - Scoreboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #0a0e17; --bg2: #111827; --border: rgba(255,255,255,0.12);
-            --text: #e8eaf0; --dim: #7a8294; --accent: #6c5ce7;
-            --gold: #f9ca24; --red: #e74c3c; --green: #00b894; --font: 'Outfit', system-ui, sans-serif;
-        }
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: var(--font); background: linear-gradient(135deg, #0a0e17, #1a1040);
-            color: var(--text); min-height: 100vh; overflow: auto; -webkit-font-smoothing: antialiased;
-        }
-        .page { max-width: 1200px; margin: 0 auto; padding: 30px 20px 80px; }
-        .header { text-align: center; margin-bottom: 32px; }
-        .header h1 { font-size: 48px; font-weight: 800; margin-bottom: 8px; }
-        .header p { color: var(--dim); font-size: 22px; }
-        .back-link { color: var(--accent); text-decoration: none; font-weight: 700; font-size: 22px; display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; }
-
-        /* Grid Table */
-        .grid-table { width: 100%; border-collapse: collapse; border: 3px solid var(--border); border-radius: 20px; overflow: hidden; }
-        .grid-table th, .grid-table td { padding: 16px 12px; text-align: center; border: 1px solid rgba(255,255,255,0.06); }
-
-        /* Player name header */
-        .grid-table thead th { background: var(--bg2); }
-        .grid-table th.label-header { font-size: 18px; font-weight: 800; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; min-width: 180px; }
-        .grid-table th.player-th { padding: 0; }
-        .grid-table th.player-th input {
-            width: 100%; padding: 20px 12px; background: rgba(0,0,0,0.4); border: none;
-            color: var(--gold); font-family: var(--font); font-size: 30px; font-weight: 800;
-            text-align: center; letter-spacing: 0.5px;
-        }
-        .grid-table th.player-th input:focus { outline: none; background: rgba(108,92,231,0.15); }
-        .grid-table th.enter-header { width: 100px; }
-
-        /* Section headers */
-        .section-row td {
-            background: rgba(108,92,231,0.12); color: var(--accent); font-weight: 800; font-size: 22px;
-            text-transform: uppercase; letter-spacing: 2px; padding: 18px 20px !important;
-            text-align: left !important; border-top: 3px solid var(--accent); border-bottom: 3px solid var(--accent);
-        }
-
-        /* Contract labels */
-        .contract-label {
-            text-align: left !important; padding-left: 20px !important; font-size: 26px; font-weight: 700;
-            background: var(--bg2); white-space: nowrap; line-height: 1.3;
-        }
-        .contract-label .icon { margin-right: 10px; font-size: 28px; }
-        .contract-label .unit { display: block; font-size: 16px; color: var(--dim); font-weight: 500; margin-top: 2px; }
-
-        /* Count input cells */
-        .count-cell { padding: 8px !important; position: relative; }
-        .count-cell input {
-            width: 100%; padding: 14px 6px; background: rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.08);
-            border-radius: 10px; color: var(--text); font-family: var(--font); font-size: 32px;
-            font-weight: 800; text-align: center;
-        }
-        .count-cell input:focus { outline: none; border-color: var(--accent); background: rgba(108,92,231,0.1); }
-        .count-cell input.error { border-color: var(--red) !important; background: rgba(231,76,60,0.15) !important; animation: shake 0.3s ease; }
-        @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
-        .count-cell .score-display { font-size: 20px; font-weight: 700; margin-top: 6px; min-height: 26px; }
-        .count-cell .score-display.neg { color: var(--red); }
-        .count-cell .score-display.pos { color: var(--green); }
-        .count-cell input::placeholder { color: rgba(255,255,255,0.12); font-weight: 400; }
-
-        /* Enter button */
-        .enter-cell { padding: 8px 10px !important; vertical-align: middle; }
-        .enter-btn {
-            padding: 14px 20px; border: none; border-radius: 12px; cursor: pointer;
-            font-family: var(--font); font-size: 22px; font-weight: 800; transition: .2s;
-            background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: #fff; white-space: nowrap;
-        }
-        .enter-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(108,92,231,0.4); }
-        .enter-btn.locked { background: rgba(0,184,148,0.3); color: var(--green); cursor: default; font-size: 20px; }
-        .enter-btn.locked:hover { transform: none; box-shadow: none; }
-
-        /* Error message */
-        .row-error { color: var(--red); font-size: 16px; font-weight: 700; display: none; margin-top: 4px; }
-        .row-error.show { display: block; }
-
-        /* Locked row */
-        .row-locked .count-cell input { background: transparent; border-color: transparent; pointer-events: none; }
-        .row-locked .contract-label { opacity: 0.55; }
-
-        /* Alternating */
-        tr.data-row:nth-child(even) td:not(.contract-label) { background: rgba(255,255,255,0.015); }
-        tr.data-row:nth-child(odd) td:not(.contract-label) { background: rgba(0,0,0,0.08); }
-
-        /* Summary rows */
-        .summary-row td { background: rgba(0,0,0,0.5); font-size: 30px; font-weight: 800; padding: 20px 12px !important; }
-        .summary-row .neg-val { color: var(--red); }
-        .summary-row .pos-val { color: var(--green); }
-        .balance-row td { font-size: 36px !important; border-top: 4px solid var(--gold) !important; }
-        .bal-pos { color: var(--green); }
-        .bal-neg { color: var(--red); }
-        .bal-zero { color: var(--dim); }
-
-        /* Buttons */
-        .btn-row { text-align: center; margin-top: 30px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-        .export-btn {
-            padding: 18px 40px; border: none; border-radius: 14px;
-            background: linear-gradient(135deg, #00b894, #00cec9); color: #fff;
-            font-family: var(--font); font-size: 22px; font-weight: 700; cursor: pointer; transition: .2s;
-        }
-        .export-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,184,148,0.4); }
-        .reset-btn {
-            padding: 18px 40px; border: 3px solid var(--red); border-radius: 14px;
-            background: transparent; color: var(--red);
-            font-family: var(--font); font-size: 22px; font-weight: 700; cursor: pointer; transition: .2s;
-        }
-        .reset-btn:hover { background: rgba(231,76,60,0.2); }
-
-        /* Trump cell coloring */
-        .trump-cell input { color: var(--green); }
-
-        @media (max-width: 900px) {
-            .grid-table th.player-th input { font-size: 22px; padding: 14px 8px; }
-            .count-cell input { font-size: 24px; padding: 10px 4px; }
-            .contract-label { font-size: 20px !important; }
-            .contract-label .unit { font-size: 13px; }
-            .summary-row td { font-size: 22px; }
-            .balance-row td { font-size: 28px !important; }
-            .header h1 { font-size: 36px; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rıfkı Scoreboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0e17;--bg2:#111827;--border:rgba(255,255,255,.12);--text:#e8eaf0;--dim:#7a8294;--accent:#6c5ce7;--gold:#f9ca24;--red:#e74c3c;--green:#00b894;--font:'Outfit',system-ui,sans-serif}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:linear-gradient(135deg,#0a0e17,#1a1040);color:var(--text);min-height:100vh;overflow:auto}
+.page{max-width:1200px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:42px;font-weight:800;text-align:center;margin-bottom:6px}
+.sub{text-align:center;color:var(--dim);font-size:20px;margin-bottom:24px}
+.card{background:rgba(17,24,38,.8);border:2px solid var(--border);border-radius:16px;padding:24px;margin-bottom:20px}
+.card h2{font-size:26px;font-weight:800;margin-bottom:16px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
+.field{flex:1;min-width:120px}
+.field label{display:block;font-size:14px;color:var(--dim);margin-bottom:4px;font-weight:700;text-transform:uppercase}
+.field input{width:100%;padding:14px 12px;background:rgba(0,0,0,.3);border:2px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--font);font-size:24px;font-weight:800;text-align:center}
+.field input:focus{outline:none;border-color:var(--accent)}
+.field input.gold{color:var(--gold)}
+.tabs{display:flex;gap:4px;margin-bottom:0}
+.tab{padding:14px 28px;border:none;border-radius:12px 12px 0 0;font-family:var(--font);font-size:20px;font-weight:800;cursor:pointer;transition:.2s;background:rgba(255,255,255,.05);color:var(--dim)}
+.tab.active{background:rgba(108,92,231,.2);color:var(--accent);border-bottom:3px solid var(--accent)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.grid-table{width:100%;border-collapse:collapse;border:2px solid var(--border);overflow:hidden}
+.grid-table th,.grid-table td{padding:14px 10px;text-align:center;border:1px solid rgba(255,255,255,.06)}
+.grid-table thead th{background:var(--bg2);font-size:22px;font-weight:800;color:var(--gold)}
+.section-row td{background:rgba(108,92,231,.12);color:var(--accent);font-weight:800;font-size:18px;text-transform:uppercase;letter-spacing:2px;padding:14px 16px!important;text-align:left!important;border-top:2px solid var(--accent);border-bottom:2px solid var(--accent)}
+.contract-label{text-align:left!important;padding-left:16px!important;font-size:22px;font-weight:700;background:var(--bg2);white-space:nowrap}
+.contract-label .unit{display:block;font-size:13px;color:var(--dim);font-weight:500}
+.count-cell{padding:6px!important}
+.count-cell input{width:100%;padding:12px 4px;background:rgba(0,0,0,.3);border:2px solid rgba(255,255,255,.08);border-radius:8px;color:var(--text);font-family:var(--font);font-size:28px;font-weight:800;text-align:center}
+.count-cell input:focus{outline:none;border-color:var(--accent)}
+.count-cell input.err{border-color:var(--red)!important;background:rgba(231,76,60,.15)!important}
+.count-cell .sd{font-size:16px;font-weight:700;margin-top:4px;min-height:20px}
+.sd.neg{color:var(--red)}.sd.pos{color:var(--green)}
+.enter-cell{padding:6px 8px!important}
+.enter-btn{padding:12px 16px;border:none;border-radius:10px;cursor:pointer;font-family:var(--font);font-size:18px;font-weight:800;background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:#fff;white-space:nowrap;transition:.2s}
+.enter-btn:hover{transform:translateY(-1px)}
+.enter-btn.locked{background:rgba(0,184,148,.3);color:var(--green);cursor:default}
+.row-locked .count-cell input{background:transparent;border-color:transparent;pointer-events:none}
+.row-error{color:var(--red);font-size:14px;font-weight:700;display:none;margin-top:4px}
+.row-error.show{display:block}
+.summary-row td{background:rgba(0,0,0,.5);font-size:26px;font-weight:800;padding:16px 10px!important}
+.neg-val{color:var(--red)}.pos-val{color:var(--green)}
+.balance-row td{font-size:32px!important;border-top:4px solid var(--gold)!important}
+.bal-pos{color:var(--green)}.bal-neg{color:var(--red)}.bal-zero{color:var(--dim)}
+.settle-box{padding:20px;border-radius:14px;margin-top:12px}
+.settle-item{padding:16px;margin-bottom:10px;border-radius:12px;font-size:22px;font-weight:700;display:flex;align-items:center;gap:12px}
+.settle-item.owes{background:rgba(231,76,60,.1);border:2px solid var(--red);color:var(--red)}
+.settle-item.gets{background:rgba(0,184,148,.1);border:2px solid var(--green);color:var(--green)}
+.settle-item.even{background:rgba(255,255,255,.05);border:2px solid var(--dim);color:var(--dim)}
+.btn{padding:14px 32px;border:none;border-radius:12px;font-family:var(--font);font-size:20px;font-weight:700;cursor:pointer;transition:.2s;margin:6px}
+.btn-green{background:linear-gradient(135deg,#00b894,#00cec9);color:#fff}
+.btn-red{border:2px solid var(--red);background:transparent;color:var(--red)}
+.btn-purple{background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:#fff}
+.btn:hover{transform:translateY(-2px)}
+.btn-row{text-align:center;margin-top:20px}
+.winner-tag{display:inline-block;padding:4px 12px;border-radius:8px;font-size:14px;font-weight:800;margin-left:8px}
+.winner-tag.w{background:rgba(0,184,148,.2);color:var(--green)}
+.winner-tag.l{background:rgba(231,76,60,.2);color:var(--red)}
+@media(max-width:900px){.count-cell input{font-size:20px}.contract-label{font-size:18px!important}.summary-row td{font-size:20px}.balance-row td{font-size:26px!important}.field input{font-size:18px}h1{font-size:32px}}
+</style>
 </head>
 <body>
-    <div class="page">
-        <a href="https://github.com/ibkucuk-cmyk/King" class="back-link" target="_blank">🃏 King Rıfkı on GitHub</a>
-        <div class="header">
-            <h1>📋 Rıfkı Scoreboard</h1>
-            <p>Type count of items → press Enter to calculate score</p>
-        </div>
+<div class="page">
+<h1>🃏 Rıfkı Night</h1>
+<p class="sub">Scoreboard + Food Settlement</p>
 
-        <table class="grid-table" id="scoreTable">
-            <thead>
-                <tr>
-                    <th class="label-header">Contract</th>
-                    <th class="player-th"><input type="text" id="p0" value="Player 1" onfocus="this.select()"></th>
-                    <th class="player-th"><input type="text" id="p1" value="Player 2" onfocus="this.select()"></th>
-                    <th class="player-th"><input type="text" id="p2" value="Player 3" onfocus="this.select()"></th>
-                    <th class="player-th"><input type="text" id="p3" value="Player 4" onfocus="this.select()"></th>
-                    <th class="enter-header"></th>
-                </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-        </table>
+<!-- EXPENSES -->
+<div class="card" id="expenseCard">
+<h2>🍕 Food &amp; Expenses</h2>
+<div class="row" id="expenseRow"></div>
+<div style="text-align:center;margin-top:8px">
+<span style="font-size:22px;font-weight:800">Total: $<span id="totalExp">0</span></span>
+<span style="margin-left:20px;font-size:18px;color:var(--dim)">Per game: $<span id="perGame">0</span></span>
+</div>
+</div>
 
-        <div class="btn-row">
-            <button class="export-btn" onclick="exportCSV()">📥 Export CSV</button>
-            <button class="reset-btn" id="resetBtn" onclick="resetAll()">🗑 Reset All</button>
-        </div>
-    </div>
+<!-- TABS -->
+<div class="tabs">
+<button class="tab active" onclick="switchTab(0)">🎮 Game 1</button>
+<button class="tab" onclick="switchTab(1)">🎮 Game 2</button>
+<button class="tab" onclick="switchTab(2)">💰 Settlement</button>
+</div>
+
+<div class="tab-content active" id="tc0"></div>
+<div class="tab-content" id="tc1"></div>
+<div class="tab-content" id="tc2">
+<div class="card"><h2>💰 Settlement — Who Owes Who</h2>
+<button class="btn btn-purple" onclick="calcSettle()" style="margin-bottom:16px">Calculate Settlement</button>
+<div id="settleResult"><p style="color:var(--dim);font-size:18px">Finish both games and click Calculate.</p></div>
+</div>
+</div>
+</div>
 
 <script>
-const CONTRACTS = [
-    { section: true, label: '❌ NEGATIVE CONTRACTS (Eksi)' },
-    { id: 'girls1', name: 'Kız (1)', icon: '👸', unit: 'Queen', perUnit: -100, max: 4 },
-    { id: 'girls2', name: 'Kız (2)', icon: '👸', unit: 'Queen', perUnit: -100, max: 4 },
-    { id: 'boys1', name: 'Erkek (1)', icon: '🤴', unit: 'Boy (J+K)', perUnit: -60, max: 8 },
-    { id: 'boys2', name: 'Erkek (2)', icon: '🤴', unit: 'Boy (J+K)', perUnit: -60, max: 8 },
-    { id: 'hearts1', name: 'Kupa (1)', icon: '♥️', unit: 'Heart card', perUnit: -30, max: 13 },
-    { id: 'hearts2', name: 'Kupa (2)', icon: '♥️', unit: 'Heart card', perUnit: -30, max: 13 },
-    { id: 'rifki1', name: 'Rıfkı (1)', icon: '💀', unit: 'K♥ (0 or 1)', perUnit: -320, max: 1 },
-    { id: 'rifki2', name: 'Rıfkı (2)', icon: '💀', unit: 'K♥ (0 or 1)', perUnit: -320, max: 1 },
-    { id: 'last1', name: 'Son İki (1)', icon: '🔚', unit: 'Last trick', perUnit: -180, max: 2 },
-    { id: 'last2', name: 'Son İki (2)', icon: '🔚', unit: 'Last trick', perUnit: -180, max: 2 },
-    { id: 'notr1', name: 'El Almaz (1)', icon: '🚫', unit: 'Trick won', perUnit: -50, max: 13 },
-    { id: 'notr2', name: 'El Almaz (2)', icon: '🚫', unit: 'Trick won', perUnit: -50, max: 13 },
-    { section: true, label: '👑 TRUMP ROUNDS (Koz) — Enter tricks won' },
-    { id: 'koz1', name: 'Koz 1', icon: '🃏', unit: 'Trick won', perUnit: 50, max: 13, trump: true },
-    { id: 'koz2', name: 'Koz 2', icon: '🃏', unit: 'Trick won', perUnit: 50, max: 13, trump: true },
-    { id: 'koz3', name: 'Koz 3', icon: '🃏', unit: 'Trick won', perUnit: 50, max: 13, trump: true },
-    { id: 'koz4', name: 'Koz 4', icon: '🃏', unit: 'Trick won', perUnit: 50, max: 13, trump: true },
-    { id: 'koz5', name: 'Koz 5', icon: '🃏', unit: 'Trick won', perUnit: 50, max: 13, trump: true },
-    { id: 'koz6', name: 'Koz 6', icon: '🃏', unit: 'Trick won', perUnit: 50, max: 13, trump: true },
-    { id: 'koz7', name: 'Koz 7', icon: '🃏', unit: 'Trick won', perUnit: 50, max: 13, trump: true },
-    { id: 'koz8', name: 'Koz 8', icon: '🃏', unit: 'Trick won', perUnit: 50, max: 13, trump: true },
+const NAMES=['Player 1','Player 2','Player 3','Player 4'];
+const NEG=[
+{id:'girls1',name:'Kız (1)',unit:'-100 × Queen (max 4)',pu:-100,max:4},
+{id:'girls2',name:'Kız (2)',unit:'-100 × Queen (max 4)',pu:-100,max:4},
+{id:'boys1',name:'Erkek (1)',unit:'-60 × Boy (max 8)',pu:-60,max:8},
+{id:'boys2',name:'Erkek (2)',unit:'-60 × Boy (max 8)',pu:-60,max:8},
+{id:'hearts1',name:'Kupa (1)',unit:'-30 × Heart (max 13)',pu:-30,max:13},
+{id:'hearts2',name:'Kupa (2)',unit:'-30 × Heart (max 13)',pu:-30,max:13},
+{id:'rifki1',name:'Rıfkı (1)',unit:'-320 × K♥ (max 1)',pu:-320,max:1},
+{id:'rifki2',name:'Rıfkı (2)',unit:'-320 × K♥ (max 1)',pu:-320,max:1},
+{id:'last1',name:'Son İki (1)',unit:'-180 × trick (max 2)',pu:-180,max:2},
+{id:'last2',name:'Son İki (2)',unit:'-180 × trick (max 2)',pu:-180,max:2},
+{id:'notr1',name:'El Almaz (1)',unit:'-50 × trick (max 13)',pu:-50,max:13},
+{id:'notr2',name:'El Almaz (2)',unit:'-50 × trick (max 13)',pu:-50,max:13}
 ];
+const TRUMP=[];for(let i=1;i<=8;i++)TRUMP.push({id:'koz'+i,name:'Koz '+i,unit:'+50 × trick (max 13)',pu:50,max:13,t:1});
+const ALL=[...NEG,...TRUMP];
+const games=[{rows:{}},{rows:{}}];
 
-const tbody = document.getElementById('tableBody');
-const rowData = {};
+// Build expense inputs
+function buildExpenses(){
+const r=document.getElementById('expenseRow');
+for(let p=0;p<4;p++){
+const d=document.createElement('div');d.className='field';
+d.innerHTML=`<label id="elbl${p}">Player ${p+1}</label><input type="number" id="exp${p}" value="0" min="0" placeholder="$0" class="gold" onfocus="this.select()" oninput="updateExp()">`;
+r.appendChild(d);
+}}
 
-function buildTable() {
-    CONTRACTS.forEach((c, idx) => {
-        if (c.section) {
-            const tr = document.createElement('tr');
-            tr.className = 'section-row';
-            tr.innerHTML = `<td colspan="6">${c.label}</td>`;
-            tbody.appendChild(tr);
-            return;
-        }
-
-        rowData[c.id] = { locked: false, counts: [0,0,0,0], scores: [0,0,0,0] };
-
-        const tr = document.createElement('tr');
-        tr.id = `row-${c.id}`;
-        tr.className = 'data-row';
-
-        const unitText = `${c.perUnit > 0 ? '+' : ''}${c.perUnit} × ${c.unit} (max ${c.max})`;
-
-        tr.innerHTML = `
-            <td class="contract-label">
-                <span class="icon">${c.icon}</span>${c.name}
-                <span class="unit">${unitText}</span>
-            </td>
-            <td class="count-cell ${c.trump ? 'trump-cell' : ''}">
-                <input type="number" min="0" max="${c.max}" id="${c.id}_p0" placeholder="—" onfocus="this.select()"
-                    onkeydown="if(event.key==='Enter'){event.preventDefault();enterRow('${c.id}');}">
-                <div class="score-display" id="${c.id}_s0"></div>
-            </td>
-            <td class="count-cell ${c.trump ? 'trump-cell' : ''}">
-                <input type="number" min="0" max="${c.max}" id="${c.id}_p1" placeholder="—" onfocus="this.select()"
-                    onkeydown="if(event.key==='Enter'){event.preventDefault();enterRow('${c.id}');}">
-                <div class="score-display" id="${c.id}_s1"></div>
-            </td>
-            <td class="count-cell ${c.trump ? 'trump-cell' : ''}">
-                <input type="number" min="0" max="${c.max}" id="${c.id}_p2" placeholder="—" onfocus="this.select()"
-                    onkeydown="if(event.key==='Enter'){event.preventDefault();enterRow('${c.id}');}">
-                <div class="score-display" id="${c.id}_s2"></div>
-            </td>
-            <td class="count-cell ${c.trump ? 'trump-cell' : ''}">
-                <input type="number" min="0" max="${c.max}" id="${c.id}_p3" placeholder="—" onfocus="this.select()"
-                    onkeydown="if(event.key==='Enter'){event.preventDefault();enterRow('${c.id}');}">
-                <div class="score-display" id="${c.id}_s3"></div>
-            </td>
-            <td class="enter-cell">
-                <button class="enter-btn" id="btn-${c.id}" onclick="enterRow('${c.id}')">Enter</button>
-                <div class="row-error" id="err-${c.id}"></div>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-
-    // Totals
-    tbody.insertAdjacentHTML('beforeend', `
-        <tr class="section-row"><td colspan="6">📊 TOTALS</td></tr>
-        <tr class="summary-row">
-            <td class="contract-label" style="font-size:24px;">− Negatives</td>
-            <td class="neg-val" id="neg_p0">0</td><td class="neg-val" id="neg_p1">0</td>
-            <td class="neg-val" id="neg_p2">0</td><td class="neg-val" id="neg_p3">0</td><td></td>
-        </tr>
-        <tr class="summary-row">
-            <td class="contract-label" style="font-size:24px;">+ Positives</td>
-            <td class="pos-val" id="pos_p0">+0</td><td class="pos-val" id="pos_p1">+0</td>
-            <td class="pos-val" id="pos_p2">+0</td><td class="pos-val" id="pos_p3">+0</td><td></td>
-        </tr>
-        <tr class="summary-row balance-row">
-            <td class="contract-label" style="font-size:28px;color:var(--gold);">BALANCE</td>
-            <td id="bal_p0" class="bal-zero">0</td><td id="bal_p1" class="bal-zero">0</td>
-            <td id="bal_p2" class="bal-zero">0</td><td id="bal_p3" class="bal-zero">0</td><td></td>
-        </tr>
-    `);
+function updateExp(){
+let t=0;for(let p=0;p<4;p++)t+=Math.max(0,parseInt(document.getElementById('exp'+p).value)||0);
+document.getElementById('totalExp').textContent=t;
+document.getElementById('perGame').textContent=(t/2).toFixed(2);
+save();
 }
 
-function enterRow(id) {
-    const c = CONTRACTS.find(x => x.id === id);
-    if (!c) return;
-    const rd = rowData[id];
-    if (rd.locked) { unlockRow(id); return; }
-
-    // Read counts
-    let total = 0;
-    const counts = [];
-    for (let p = 0; p < 4; p++) {
-        const raw = document.getElementById(`${id}_p${p}`).value;
-        const val = raw === '' ? 0 : Math.max(0, parseInt(raw) || 0);
-        counts.push(val);
-        total += val;
-    }
-
-    // Validate: total must EXACTLY equal max
-    const errEl = document.getElementById(`err-${id}`);
-    if (total !== c.max) {
-        let msg = '';
-        if (total > c.max) {
-            msg = `❌ Total ${total} exceeds max ${c.max}!`;
-        } else {
-            msg = `❌ Total ${total} — must equal exactly ${c.max}!`;
-        }
-        errEl.textContent = msg;
-        errEl.classList.add('show');
-        for (let p = 0; p < 4; p++) document.getElementById(`${id}_p${p}`).classList.add('error');
-        setTimeout(() => {
-            errEl.classList.remove('show');
-            for (let p = 0; p < 4; p++) document.getElementById(`${id}_p${p}`).classList.remove('error');
-        }, 4000);
-        return;
-    }
-
-    // Validate individual: no single player exceeds max
-    for (let p = 0; p < 4; p++) {
-        if (counts[p] > c.max) {
-            errEl.textContent = `❌ Player value ${counts[p]} exceeds max ${c.max}!`;
-            errEl.classList.add('show');
-            document.getElementById(`${id}_p${p}`).classList.add('error');
-            setTimeout(() => {
-                errEl.classList.remove('show');
-                document.getElementById(`${id}_p${p}`).classList.remove('error');
-            }, 4000);
-            return;
-        }
-    }
-
-    // Calculate scores
-    rd.counts = counts;
-    for (let p = 0; p < 4; p++) {
-        rd.scores[p] = counts[p] * c.perUnit;
-        const scoreEl = document.getElementById(`${id}_s${p}`);
-        if (rd.scores[p] !== 0) {
-            scoreEl.textContent = `= ${rd.scores[p] > 0 ? '+' : ''}${rd.scores[p]}`;
-        } else {
-            scoreEl.textContent = '= 0';
-        }
-        scoreEl.className = `score-display ${rd.scores[p] < 0 ? 'neg' : rd.scores[p] > 0 ? 'pos' : ''}`;
-    }
-
-    // Lock row
-    rd.locked = true;
-    document.getElementById(`row-${id}`).classList.add('row-locked');
-    const btn = document.getElementById(`btn-${id}`);
-    btn.textContent = '✓ Edit';
-    btn.classList.add('locked');
-    errEl.classList.remove('show');
-
-    recalcTotals();
-    saveState();
+// Build game scoreboards
+function buildGame(gi){
+const container=document.getElementById('tc'+gi);
+const tbl=document.createElement('table');tbl.className='grid-table';
+let h='<thead><tr><th style="min-width:160px">Contract</th>';
+for(let p=0;p<4;p++)h+=`<th class="pname" data-p="${p}">Player ${p+1}</th>`;
+h+='<th style="width:80px"></th></tr></thead><tbody>';
+h+='<tr class="section-row"><td colspan="6">❌ NEGATIVES</td></tr>';
+NEG.forEach(c=>{h+=mkRow(gi,c)});
+h+='<tr class="section-row"><td colspan="6">👑 TRUMP (Koz)</td></tr>';
+TRUMP.forEach(c=>{h+=mkRow(gi,c)});
+h+=`<tr class="section-row"><td colspan="6">📊 TOTALS</td></tr>`;
+h+=sumRow(gi,'neg','− Negatives','neg-val');
+h+=sumRow(gi,'pos','+ Positives','pos-val');
+h+=`<tr class="summary-row balance-row"><td class="contract-label" style="font-size:24px;color:var(--gold)">BALANCE</td>`;
+for(let p=0;p<4;p++)h+=`<td id="g${gi}_bal_p${p}" class="bal-zero">0</td>`;
+h+='<td></td></tr></tbody>';
+tbl.innerHTML=h;container.appendChild(tbl);
+const br=document.createElement('div');br.className='btn-row';
+br.innerHTML=`<button class="btn btn-red" onclick="resetGame(${gi})">🗑 Reset Game ${gi+1}</button>`;
+container.appendChild(br);
+ALL.forEach(c=>{games[gi].rows[c.id]={locked:false,counts:[0,0,0,0],scores:[0,0,0,0]}});
 }
 
-function unlockRow(id) {
-    const rd = rowData[id];
-    rd.locked = false;
-    document.getElementById(`row-${id}`).classList.remove('row-locked');
-    const btn = document.getElementById(`btn-${id}`);
-    btn.textContent = 'Enter';
-    btn.classList.remove('locked');
-    // Clear score displays
-    for (let p = 0; p < 4; p++) {
-        document.getElementById(`${id}_s${p}`).textContent = '';
-    }
+function mkRow(gi,c){
+const rid=`g${gi}_${c.id}`;
+let h=`<tr id="row-${rid}" class="data-row"><td class="contract-label">${c.name}<span class="unit">${c.unit}</span></td>`;
+for(let p=0;p<4;p++){
+h+=`<td class="count-cell ${c.t?'trump-cell':''}"><input type="number" min="0" max="${c.max}" id="${rid}_p${p}" placeholder="—" onfocus="this.select()" onkeydown="if(event.key==='Enter'){event.preventDefault();enterR('${rid}',${gi},'${c.id}')}"><div class="sd" id="${rid}_s${p}"></div></td>`;
+}
+h+=`<td class="enter-cell"><button class="enter-btn" id="btn-${rid}" onclick="enterR('${rid}',${gi},'${c.id}')">Enter</button><div class="row-error" id="err-${rid}"></div></td></tr>`;
+return h;
 }
 
-function recalcTotals() {
-    let neg = [0,0,0,0], pos = [0,0,0,0];
-    Object.entries(rowData).forEach(([id, rd]) => {
-        if (!rd.locked) return;
-        for (let p = 0; p < 4; p++) {
-            if (rd.scores[p] < 0) neg[p] += rd.scores[p];
-            else pos[p] += rd.scores[p];
-        }
-    });
-    for (let p = 0; p < 4; p++) {
-        document.getElementById(`neg_p${p}`).textContent = neg[p];
-        document.getElementById(`pos_p${p}`).textContent = `+${pos[p]}`;
-        const bal = neg[p] + pos[p];
-        const balEl = document.getElementById(`bal_p${p}`);
-        balEl.textContent = `${bal > 0 ? '+' : ''}${bal}`;
-        balEl.className = bal > 0 ? 'bal-pos' : bal < 0 ? 'bal-neg' : 'bal-zero';
-    }
+function sumRow(gi,pre,label,cls){
+let h=`<tr class="summary-row"><td class="contract-label" style="font-size:20px">${label}</td>`;
+for(let p=0;p<4;p++)h+=`<td class="${cls}" id="g${gi}_${pre}_p${p}">0</td>`;
+return h+'<td></td></tr>';
 }
 
-// ─── Save / Load ────────────────────────
-function saveState() {
-    const state = { names: [], rows: {} };
-    for (let p = 0; p < 4; p++) state.names.push(document.getElementById(`p${p}`).value);
-    Object.entries(rowData).forEach(([id, rd]) => {
-        if (rd.locked) state.rows[id] = rd.counts;
-    });
-    localStorage.setItem('rifki_sb3', JSON.stringify(state));
+function enterR(rid,gi,cid){
+const c=ALL.find(x=>x.id===cid);if(!c)return;
+const rd=games[gi].rows[cid];
+if(rd.locked){unlockR(rid,gi,cid);return}
+let total=0;const counts=[];
+for(let p=0;p<4;p++){const v=Math.max(0,parseInt(document.getElementById(rid+'_p'+p).value)||0);counts.push(v);total+=v}
+const errEl=document.getElementById('err-'+rid);
+if(total!==c.max){
+errEl.textContent=total>c.max?`❌ Total ${total} > max ${c.max}!`:`❌ Total ${total} ≠ ${c.max}!`;
+errEl.classList.add('show');
+for(let p=0;p<4;p++)document.getElementById(rid+'_p'+p).classList.add('err');
+setTimeout(()=>{errEl.classList.remove('show');for(let p=0;p<4;p++)document.getElementById(rid+'_p'+p).classList.remove('err')},3000);
+return}
+rd.counts=counts;
+for(let p=0;p<4;p++){
+rd.scores[p]=counts[p]*c.pu;
+const s=document.getElementById(rid+'_s'+p);
+s.textContent=rd.scores[p]?`= ${rd.scores[p]>0?'+':''}${rd.scores[p]}`:'= 0';
+s.className='sd '+(rd.scores[p]<0?'neg':rd.scores[p]>0?'pos':'');
+}
+rd.locked=true;document.getElementById('row-'+rid).classList.add('row-locked');
+const btn=document.getElementById('btn-'+rid);btn.textContent='✓ Edit';btn.classList.add('locked');
+errEl.classList.remove('show');recalc(gi);save();
 }
 
-function loadState() {
-    const raw = localStorage.getItem('rifki_sb3');
-    if (!raw) return;
-    try {
-        const state = JSON.parse(raw);
-        if (state.names) state.names.forEach((n, i) => { if (n) document.getElementById(`p${i}`).value = n; });
-        if (state.rows) {
-            Object.entries(state.rows).forEach(([id, counts]) => {
-                for (let p = 0; p < 4; p++) {
-                    const el = document.getElementById(`${id}_p${p}`);
-                    if (el) el.value = counts[p] || '';
-                }
-                enterRow(id);
-            });
-        }
-    } catch (e) { console.error(e); }
+function unlockR(rid,gi,cid){
+const rd=games[gi].rows[cid];rd.locked=false;
+document.getElementById('row-'+rid).classList.remove('row-locked');
+const btn=document.getElementById('btn-'+rid);btn.textContent='Enter';btn.classList.remove('locked');
+for(let p=0;p<4;p++)document.getElementById(rid+'_s'+p).textContent='';
 }
 
-function resetAll() {
-    if (!confirm('Clear ALL scores? This cannot be undone.')) return;
-    localStorage.removeItem('rifki_sb3');
-    Object.keys(rowData).forEach(id => {
-        // Unlock
-        rowData[id].locked = false;
-        rowData[id].counts = [0,0,0,0];
-        rowData[id].scores = [0,0,0,0];
-        const tr = document.getElementById(`row-${id}`);
-        if (tr) tr.classList.remove('row-locked');
-        const btn = document.getElementById(`btn-${id}`);
-        if (btn) { btn.textContent = 'Enter'; btn.classList.remove('locked'); }
-        for (let p = 0; p < 4; p++) {
-            const inp = document.getElementById(`${id}_p${p}`);
-            if (inp) { inp.value = ''; inp.classList.remove('error'); }
-            const sc = document.getElementById(`${id}_s${p}`);
-            if (sc) sc.textContent = '';
-        }
-        const err = document.getElementById(`err-${id}`);
-        if (err) err.classList.remove('show');
-    });
-    recalcTotals();
+function recalc(gi){
+let neg=[0,0,0,0],pos=[0,0,0,0];
+Object.entries(games[gi].rows).forEach(([id,rd])=>{
+if(!rd.locked)return;
+for(let p=0;p<4;p++){if(rd.scores[p]<0)neg[p]+=rd.scores[p];else pos[p]+=rd.scores[p]}
+});
+for(let p=0;p<4;p++){
+document.getElementById(`g${gi}_neg_p${p}`).textContent=neg[p];
+document.getElementById(`g${gi}_pos_p${p}`).textContent='+'+pos[p];
+const bal=neg[p]+pos[p];
+const el=document.getElementById(`g${gi}_bal_p${p}`);
+el.textContent=(bal>0?'+':'')+bal;
+el.className=bal>0?'bal-pos':bal<0?'bal-neg':'bal-zero';
+}
 }
 
-function exportCSV() {
-    const names = [];
-    for (let p = 0; p < 4; p++) names.push(document.getElementById(`p${p}`).value || `Player ${p+1}`);
-    let csv = `Contract,${names.join(',')}\n`;
-    CONTRACTS.forEach(c => {
-        if (c.section) return;
-        const rd = rowData[c.id];
-        if (!rd || !rd.locked) { csv += `${c.name},0,0,0,0\n`; return; }
-        csv += `${c.name},${rd.scores.join(',')}\n`;
-    });
-    csv += `Negatives,${[0,1,2,3].map(p => document.getElementById(`neg_p${p}`).textContent).join(',')}\n`;
-    csv += `Positives,${[0,1,2,3].map(p => document.getElementById(`pos_p${p}`).textContent).join(',')}\n`;
-    csv += `BALANCE,${[0,1,2,3].map(p => document.getElementById(`bal_p${p}`).textContent).join(',')}\n`;
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `rifki_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
+function resetGame(gi){
+if(!confirm('Reset Game '+(gi+1)+'?'))return;
+ALL.forEach(c=>{
+const rid=`g${gi}_${c.id}`;
+const rd=games[gi].rows[c.id];rd.locked=false;rd.counts=[0,0,0,0];rd.scores=[0,0,0,0];
+const tr=document.getElementById('row-'+rid);if(tr)tr.classList.remove('row-locked');
+const btn=document.getElementById('btn-'+rid);if(btn){btn.textContent='Enter';btn.classList.remove('locked')}
+for(let p=0;p<4;p++){
+const inp=document.getElementById(rid+'_p'+p);if(inp){inp.value='';inp.classList.remove('err')}
+const sc=document.getElementById(rid+'_s'+p);if(sc)sc.textContent='';
+}});recalc(gi);save();
 }
 
-// Save names on change
-for (let p = 0; p < 4; p++) document.getElementById(`p${p}`).addEventListener('input', saveState);
+// Tabs
+function switchTab(i){
+document.querySelectorAll('.tab').forEach((t,j)=>{t.classList.toggle('active',j===i)});
+document.querySelectorAll('.tab-content').forEach((t,j)=>{t.classList.toggle('active',j===i)});
+}
 
-buildTable();
-loadState();
+// Sync player names
+function syncNames(){
+const names=[];
+for(let p=0;p<4;p++){
+const n=document.getElementById('exp'+p).previousElementSibling||document.getElementById('elbl'+p);
+names.push(n?n.textContent:'Player '+(p+1));
+}
+}
+
+// Settlement
+function calcSettle(){
+const names=[];const spent=[];
+for(let p=0;p<4;p++){
+names.push(document.getElementById('elbl'+p).textContent);
+spent.push(Math.max(0,parseInt(document.getElementById('exp'+p).value)||0));
+}
+const totalExp=spent.reduce((a,b)=>a+b,0);
+if(totalExp===0){document.getElementById('settleResult').innerHTML='<p style="color:var(--red);font-size:20px">Enter food expenses first!</p>';return}
+const perGame=totalExp/2;
+const totalPaid=[0,0,0,0];
+for(let gi=0;gi<2;gi++){
+const bals=[];
+for(let p=0;p<4;p++){
+let neg=0,pos=0;
+Object.values(games[gi].rows).forEach(rd=>{if(!rd.locked)return;if(rd.scores[p]<0)neg+=rd.scores[p];else pos+=rd.scores[p]});
+bals.push(neg+pos);
+}
+const losers=bals.map((b,i)=>b<0?i:-1).filter(i=>i>=0);
+if(losers.length===0)continue;
+const share=perGame/losers.length;
+losers.forEach(i=>{totalPaid[i]+=share});
+}
+// Net: positive = owed money, negative = owes money
+const net=[];
+for(let p=0;p<4;p++)net.push(spent[p]-totalPaid[p]);
+// Generate settlement
+const debtors=[];const creditors=[];
+net.forEach((n,i)=>{if(n<0)debtors.push({i,amt:Math.abs(n)});else if(n>0)creditors.push({i,amt:n})});
+let html='<div style="margin-bottom:16px">';
+// Game summaries
+for(let gi=0;gi<2;gi++){
+html+=`<div style="margin-bottom:12px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px"><strong style="font-size:18px">Game ${gi+1}:</strong> `;
+const bals=[];
+for(let p=0;p<4;p++){let s=0;Object.values(games[gi].rows).forEach(rd=>{if(rd.locked)s+=rd.scores[p]});bals.push(s)}
+for(let p=0;p<4;p++){
+const tag=bals[p]<0?'l':'w';
+html+=`<span style="margin:0 8px;font-size:18px">${names[p]}: <strong style="color:${bals[p]<0?'var(--red)':'var(--green)'}">${bals[p]>0?'+':''}${bals[p]}</strong><span class="winner-tag ${tag}">${tag==='w'?'WIN':'LOSE'}</span></span>`;
+}
+const losers=bals.map((b,i)=>b<0?i:-1).filter(i=>i>=0);
+html+=`<br><span style="font-size:16px;color:var(--dim)">${losers.length} loser(s) × $${(perGame/Math.max(1,losers.length)).toFixed(2)} each</span></div>`;
+}
+html+='</div>';
+// Payments
+if(debtors.length===0&&creditors.length===0){
+html+='<div class="settle-item even">✅ Everyone is even!</div>';
+}else{
+const d=[...debtors];const c=[...creditors];
+while(d.length&&c.length){
+const pay=Math.min(d[0].amt,c[0].amt);
+html+=`<div class="settle-item owes">💸 ${names[d[0].i]} owes ${names[c[0].i]} <strong>$${pay.toFixed(2)}</strong></div>`;
+d[0].amt-=pay;c[0].amt-=pay;
+if(d[0].amt<0.01)d.shift();
+if(c[0].amt<0.01)c.shift();
+}
+}
+document.getElementById('settleResult').innerHTML=html;
+}
+
+// Player name editing
+function setupNames(){
+const labels=document.querySelectorAll('[id^="elbl"]');
+labels.forEach((lbl,i)=>{
+lbl.style.cursor='pointer';lbl.title='Click to edit name';
+lbl.onclick=()=>{
+const n=prompt('Player '+(i+1)+' name:',lbl.textContent);
+if(n&&n.trim()){
+lbl.textContent=n.trim();
+document.querySelectorAll('.pname[data-p="'+i+'"]').forEach(th=>{th.textContent=n.trim()});
+save();
+}};
+});
+}
+
+// Save/Load
+function save(){
+const st={names:[],expenses:[],games:[[],[]]};
+for(let p=0;p<4;p++){st.names.push(document.getElementById('elbl'+p).textContent);st.expenses.push(document.getElementById('exp'+p).value)}
+for(let gi=0;gi<2;gi++){
+Object.entries(games[gi].rows).forEach(([id,rd])=>{if(rd.locked)st.games[gi].push([id,rd.counts])});
+}
+localStorage.setItem('rifki_night',JSON.stringify(st));
+}
+
+function load(){
+const raw=localStorage.getItem('rifki_night');if(!raw)return;
+try{
+const st=JSON.parse(raw);
+if(st.names)st.names.forEach((n,i)=>{
+document.getElementById('elbl'+i).textContent=n;
+document.querySelectorAll('.pname[data-p="'+i+'"]').forEach(th=>{th.textContent=n});
+});
+if(st.expenses)st.expenses.forEach((v,i)=>{document.getElementById('exp'+i).value=v});
+updateExp();
+if(st.games){
+st.games.forEach((g,gi)=>{
+g.forEach(([cid,counts])=>{
+const rid=`g${gi}_${cid}`;
+for(let p=0;p<4;p++){const el=document.getElementById(rid+'_p'+p);if(el)el.value=counts[p]||''}
+enterR(rid,gi,cid);
+});
+});
+}
+}catch(e){console.error(e)}
+}
+
+// Init
+buildExpenses();buildGame(0);buildGame(1);setupNames();load();
 </script>
 </body>
 </html>
