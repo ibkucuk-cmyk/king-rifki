@@ -263,54 +263,85 @@ document.getElementById('tab'+gi).innerHTML=`🎮 Game ${gi+1} <span style="font
 
 // Settlement
 function calcSettle(){
-const enames=[];const spent=[];
+// Build expense map: name -> amount spent
+const expenseMap={};const enames=[];
 for(let p=0;p<4;p++){
-enames.push(document.getElementById('ename'+p).value||'Person '+(p+1));
-spent.push(Math.max(0,parseInt(document.getElementById('exp'+p).value)||0));
+const n=(document.getElementById('ename'+p).value||'').trim();
+const v=Math.max(0,parseInt(document.getElementById('exp'+p).value)||0);
+if(n){expenseMap[n.toLowerCase()]=v;enames.push(n)}
 }
-const totalExp=spent.reduce((a,b)=>a+b,0);
+const totalExp=Object.values(expenseMap).reduce((a,b)=>a+b,0);
 if(totalExp===0){document.getElementById('settleResult').innerHTML='<p style="color:var(--red);font-size:20px">Enter food expenses first!</p>';return}
+
 // Get game player names
 const gnames=[[],[]];
-for(let gi=0;gi<2;gi++)for(let p=0;p<4;p++)gnames[gi].push(document.getElementById('g'+gi+'_name'+p).value||'Player '+(p+1));
+for(let gi=0;gi<2;gi++)for(let p=0;p<4;p++)gnames[gi].push((document.getElementById('g'+gi+'_name'+p).value||'Player '+(p+1)).trim());
+
 const g1p=getGameProgress(0),g2p=getGameProgress(1);
 let warnHtml='';
 if(g1p<20||g2p<20){
-warnHtml=`<div style="padding:14px;margin-bottom:16px;border-radius:10px;background:rgba(249,202,36,.1);border:2px solid var(--gold);color:var(--gold);font-size:18px;font-weight:700">⚠️ Games not complete! Game 1: ${g1p}/20 hands, Game 2: ${g2p}/20 hands. Settlement is only accurate after all 20 hands per game are entered.</div>`;}
+warnHtml=`<div style="padding:14px;margin-bottom:16px;border-radius:10px;background:rgba(249,202,36,.1);border:2px solid var(--gold);color:var(--gold);font-size:18px;font-weight:700">⚠️ Games not complete! Game 1: ${g1p}/20, Game 2: ${g2p}/20. Settlement is only accurate after all 20 hands.</div>`;}
+
 const perGame=totalExp/2;
-const totalPaid=[0,0,0,0];
-for(let gi=0;gi<2;gi++){
-const bals=[];
-for(let p=0;p<4;p++){
-let neg=0,pos=0;
-Object.values(games[gi].rows).forEach(rd=>{if(!rd.locked)return;if(rd.scores[p]<0)neg+=rd.scores[p];else pos+=rd.scores[p]});
-bals.push(neg+pos);
-}
-const losers=bals.map((b,i)=>b<0?i:-1).filter(i=>i>=0);
-if(losers.length===0)continue;
-const share=perGame/losers.length;
-losers.forEach(i=>{totalPaid[i]+=share});
-}
-// Net: positive = owed money, negative = owes money
-const net=[];
-for(let p=0;p<4;p++)net.push(spent[p]-totalPaid[p]);
-// Generate settlement
-const debtors=[];const creditors=[];
-net.forEach((n,i)=>{if(n<0)debtors.push({i,amt:Math.abs(n)});else if(n>0)creditors.push({i,amt:n})});
+
+// Track how much each PERSON (by name) owes as a loser
+const loserPayments={};
+
 let html='<div style="margin-bottom:16px">';
-// Game summaries
 for(let gi=0;gi<2;gi++){
 html+=`<div style="margin-bottom:12px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px"><strong style="font-size:18px">Game ${gi+1}:</strong> `;
 const bals=[];
 for(let p=0;p<4;p++){let s=0;Object.values(games[gi].rows).forEach(rd=>{if(rd.locked)s+=rd.scores[p]});bals.push(s)}
+
+// Show each player's result
 for(let p=0;p<4;p++){
 const tag=bals[p]<0?'l':'w';
 html+=`<span style="margin:0 8px;font-size:18px">${gnames[gi][p]}: <strong style="color:${bals[p]<0?'var(--red)':'var(--green)'}">${bals[p]>0?'+':''}${bals[p]}</strong><span class="winner-tag ${tag}">${tag==='w'?'WIN':'LOSE'}</span></span>`;
 }
-const losers=bals.map((b,i)=>b<0?i:-1).filter(i=>i>=0);
-html+=`<br><span style="font-size:16px;color:var(--dim)">${losers.length} loser(s) × $${(perGame/Math.max(1,losers.length)).toFixed(2)} each</span></div>`;
+
+// Find losers BY NAME and add their share
+const loserIndices=bals.map((b,i)=>b<0?i:-1).filter(i=>i>=0);
+if(loserIndices.length>0){
+const share=perGame/loserIndices.length;
+loserIndices.forEach(i=>{
+const name=gnames[gi][i].toLowerCase();
+loserPayments[name]=(loserPayments[name]||0)+share;
+});
+html+=`<br><span style="font-size:16px;color:var(--dim)">${loserIndices.length} loser(s) × $${(perGame/loserIndices.length).toFixed(2)} each</span>`;
+}
+html+='</div>';
 }
 html+='</div>';html=warnHtml+html;
+
+// Collect ALL unique people (from expenses + games)
+const allPeople=new Set();
+enames.forEach(n=>allPeople.add(n));
+gnames[0].forEach(n=>allPeople.add(n));
+gnames[1].forEach(n=>allPeople.add(n));
+
+// Calculate net for each person: spent - loserPayments
+// Positive net = owed money, Negative net = owes money
+const debtors=[];const creditors=[];
+allPeople.forEach(name=>{
+const nameL=name.toLowerCase();
+const foodSpent=expenseMap[nameL]||0;
+const lostAmt=loserPayments[nameL]||0;
+const net=foodSpent-lostAmt;
+if(net<-0.01)debtors.push({name,amt:Math.abs(net)});
+else if(net>0.01)creditors.push({name,amt:net});
+});
+
+// Show breakdown
+html+='<div style="margin-bottom:16px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px"><strong style="font-size:18px">Breakdown:</strong><br>';
+allPeople.forEach(name=>{
+const nameL=name.toLowerCase();
+const foodSpent=expenseMap[nameL]||0;
+const lostAmt=loserPayments[nameL]||0;
+const net=foodSpent-lostAmt;
+const color=net>0?'var(--green)':net<0?'var(--red)':'var(--dim)';
+html+=`<span style="display:inline-block;margin:4px 12px;font-size:16px"><strong>${name}</strong>: spent $${foodSpent}, lost $${lostAmt.toFixed(0)} → <strong style="color:${color}">net ${net>0?'+':''}$${net.toFixed(2)}</strong></span>`;
+});
+html+='</div>';
 // Payments
 if(debtors.length===0&&creditors.length===0){
 html+='<div class="settle-item even">✅ Everyone is even!</div>';
@@ -318,7 +349,7 @@ html+='<div class="settle-item even">✅ Everyone is even!</div>';
 const d=[...debtors];const c=[...creditors];
 while(d.length&&c.length){
 const pay=Math.min(d[0].amt,c[0].amt);
-html+=`<div class="settle-item owes">💸 ${enames[d[0].i]} owes ${enames[c[0].i]} <strong>$${pay.toFixed(2)}</strong></div>`;
+html+=`<div class="settle-item owes">💸 ${d[0].name} owes ${c[0].name} <strong>$${pay.toFixed(2)}</strong></div>`;
 d[0].amt-=pay;c[0].amt-=pay;
 if(d[0].amt<0.01)d.shift();
 if(c[0].amt<0.01)c.shift();
