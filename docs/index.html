@@ -82,8 +82,8 @@ h1{font-size:42px;font-weight:800;text-align:center;margin-bottom:6px}
 
 <!-- TABS -->
 <div class="tabs">
-<button class="tab active" onclick="switchTab(0)">🎮 Game 1</button>
-<button class="tab" onclick="switchTab(1)">🎮 Game 2</button>
+<button class="tab active" onclick="switchTab(0)" id="tab0">🎮 Game 1 <span style="font-size:14px;opacity:.7">(0/20)</span></button>
+<button class="tab" onclick="switchTab(1)" id="tab1">🎮 Game 2 <span style="font-size:14px;opacity:.7">(0/20)</span></button>
 <button class="tab" onclick="switchTab(2)">💰 Settlement</button>
 </div>
 
@@ -195,7 +195,7 @@ s.className='sd '+(rd.scores[p]<0?'neg':rd.scores[p]>0?'pos':'');
 }
 rd.locked=true;document.getElementById('row-'+rid).classList.add('row-locked');
 const btn=document.getElementById('btn-'+rid);btn.textContent='✓ Edit';btn.classList.add('locked');
-errEl.classList.remove('show');recalc(gi);save();
+errEl.classList.remove('show');recalc(gi);updateTabProgress();save();
 }
 
 function unlockR(rid,gi,cid){
@@ -231,7 +231,7 @@ const btn=document.getElementById('btn-'+rid);if(btn){btn.textContent='Enter';bt
 for(let p=0;p<4;p++){
 const inp=document.getElementById(rid+'_p'+p);if(inp){inp.value='';inp.classList.remove('err')}
 const sc=document.getElementById(rid+'_s'+p);if(sc)sc.textContent='';
-}});recalc(gi);save();
+}});recalc(gi);updateTabProgress();save();
 }
 
 // Tabs
@@ -249,6 +249,16 @@ names.push(n?n.textContent:'Player '+(p+1));
 }
 }
 
+// Progress tracking
+function getGameProgress(gi){
+let count=0;Object.values(games[gi].rows).forEach(rd=>{if(rd.locked)count++});return count;
+}
+function updateTabProgress(){
+for(let gi=0;gi<2;gi++){
+const count=getGameProgress(gi);
+document.getElementById('tab'+gi).innerHTML=`🎮 Game ${gi+1} <span style="font-size:14px;opacity:.7">(${count}/20)</span>`;
+}}
+
 // Settlement
 function calcSettle(){
 const names=[];const spent=[];
@@ -258,6 +268,10 @@ spent.push(Math.max(0,parseInt(document.getElementById('exp'+p).value)||0));
 }
 const totalExp=spent.reduce((a,b)=>a+b,0);
 if(totalExp===0){document.getElementById('settleResult').innerHTML='<p style="color:var(--red);font-size:20px">Enter food expenses first!</p>';return}
+const g1p=getGameProgress(0),g2p=getGameProgress(1);
+let warnHtml='';
+if(g1p<20||g2p<20){
+warnHtml=`<div style="padding:14px;margin-bottom:16px;border-radius:10px;background:rgba(249,202,36,.1);border:2px solid var(--gold);color:var(--gold);font-size:18px;font-weight:700">⚠️ Games not complete! Game 1: ${g1p}/20 hands, Game 2: ${g2p}/20 hands. Settlement is only accurate after all 20 hands per game are entered.</div>`;}
 const perGame=totalExp/2;
 const totalPaid=[0,0,0,0];
 for(let gi=0;gi<2;gi++){
@@ -291,7 +305,7 @@ html+=`<span style="margin:0 8px;font-size:18px">${names[p]}: <strong style="col
 const losers=bals.map((b,i)=>b<0?i:-1).filter(i=>i>=0);
 html+=`<br><span style="font-size:16px;color:var(--dim)">${losers.length} loser(s) × $${(perGame/Math.max(1,losers.length)).toFixed(2)} each</span></div>`;
 }
-html+='</div>';
+html+='</div>';html=warnHtml+html;
 // Payments
 if(debtors.length===0&&creditors.length===0){
 html+='<div class="settle-item even">✅ Everyone is even!</div>';
