@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rıfkı (King) - Turkish Card Game</title>
+    <meta name="description" content="Play Rıfkı (King), the classic Turkish trick-taking card game online with friends or AI opponents.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="lobby-page">
+    <div class="bg-particles" id="particles"></div>
+
+    <div class="lobby-container">
+        <div class="logo-section">
+            <div class="logo-icon">🃏</div>
+            <h1 class="game-title">
+                <span class="title-rifki">Rıfkı</span>
+                <span class="title-divider">•</span>
+                <span class="title-king">King</span>
+            </h1>
+            <p class="game-subtitle">Turkish Trick-Taking Card Game</p>
+        </div>
+
+        <div class="lobby-card glass-card">
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="new" id="tab-new">New Game</button>
+                <button class="tab-btn" data-tab="join" id="tab-join">Join Game</button>
+                <button class="tab-btn" data-tab="score" id="tab-score">📝 Scoreboard</button>
+            </div>
+
+            <!-- New Game Form -->
+            <div class="tab-content active" id="panel-new">
+                <div class="form-group">
+                    <label for="player-name">Your Name</label>
+                    <input type="text" id="player-name" placeholder="Enter your name..." maxlength="20" value="">
+                </div>
+
+                <div class="form-group">
+                    <label>Number of Human Players</label>
+                    <div class="player-count-selector">
+                        <button class="count-btn active" data-count="1" id="count-1">
+                            <span class="count-num">1</span>
+                            <span class="count-label">Solo</span>
+                        </button>
+                        <button class="count-btn" data-count="2" id="count-2">
+                            <span class="count-num">2</span>
+                            <span class="count-label">Duo</span>
+                        </button>
+                        <button class="count-btn" data-count="3" id="count-3">
+                            <span class="count-num">3</span>
+                            <span class="count-label">Trio</span>
+                        </button>
+                        <button class="count-btn" data-count="4" id="count-4">
+                            <span class="count-num">4</span>
+                            <span class="count-label">Full</span>
+                        </button>
+                    </div>
+                    <p class="hint-text" id="ai-hint">3 AI opponents will fill the remaining seats</p>
+                </div>
+
+                <button class="btn-primary" id="btn-create-game">
+                    <span class="btn-icon">🎴</span>
+                    Start Game
+                </button>
+            </div>
+
+            <!-- Join Game Form -->
+            <div class="tab-content" id="panel-join">
+                <div class="form-group">
+                    <label for="join-name">Your Name</label>
+                    <input type="text" id="join-name" placeholder="Enter your name..." maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label for="room-code">Room Code</label>
+                    <input type="text" id="room-code" placeholder="Enter room code..." maxlength="8">
+                </div>
+                <button class="btn-primary" id="btn-join-game">
+                    <span class="btn-icon">🚪</span>
+                    Join Game
+                </button>
+            </div>
+
+            <!-- Scoreboard Only -->
+            <div class="tab-content" id="panel-score">
+                <div style="text-align:center; padding: 20px 0;">
+                    <p style="font-size:18px; font-weight:700; margin-bottom:8px;">📝 Manual Scoreboard</p>
+                    <p style="font-size:14px; color:var(--text-dim); margin-bottom:20px;">
+                        Track scores for your physical card game.<br>No need to play digitally!
+                    </p>
+                    <a href="/manual-scoreboard" class="btn-primary" style="text-decoration:none; display:inline-flex; max-width:300px; margin:0 auto;">
+                        <span class="btn-icon">📊</span>
+                        Open Scoreboard
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rules Preview -->
+        <div class="rules-preview glass-card">
+            <h3>📜 Quick Rules</h3>
+            <div class="rules-grid">
+                <div class="rule-item">
+                    <span class="rule-icon">🃏</span>
+                    <div>
+                        <strong>20 Rounds</strong>
+                        <p>5 contracts per player</p>
+                    </div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-icon">👑</span>
+                    <div>
+                        <strong>2 Trump + 3 Negative</strong>
+                        <p>Each player declares</p>
+                    </div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-icon">♥️</span>
+                    <div>
+                        <strong>K♥ = Rıfkı</strong>
+                        <p>-320 points penalty!</p>
+                    </div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-icon">🤖</span>
+                    <div>
+                        <strong>AI Opponents</strong>
+                        <p>Smart AI fills empty seats</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="waiting-overlay" id="waiting-overlay" style="display:none;">
+            <div class="waiting-card glass-card">
+                <div class="spinner"></div>
+                <h3>Waiting for Players</h3>
+                <p id="waiting-text">Share this code with friends:</p>
+                <div class="room-code-display" id="room-code-display"></div>
+                <p class="waiting-count" id="waiting-count"></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        let selectedCount = 1;
+
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Player count
+        document.querySelectorAll('.count-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.count-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedCount = parseInt(btn.dataset.count);
+                const aiCount = 4 - selectedCount;
+                document.getElementById('ai-hint').textContent =
+                    aiCount === 0 ? 'All seats filled by humans'
+                    : `${aiCount} AI opponent${aiCount > 1 ? 's' : ''} will fill the remaining seat${aiCount > 1 ? 's' : ''}`;
+            });
+        });
+
+        // Create game
+        document.getElementById('btn-create-game').addEventListener('click', () => {
+            const name = document.getElementById('player-name').value.trim() || 'Player 1';
+            sessionStorage.setItem('rifki_player_name', name);
+            socket.emit('create_game', { name, num_humans: selectedCount });
+        });
+
+        // Join game
+        document.getElementById('btn-join-game').addEventListener('click', () => {
+            const name = document.getElementById('join-name').value.trim() || 'Player';
+            sessionStorage.setItem('rifki_player_name', name);
+            const roomId = document.getElementById('room-code').value.trim();
+            if (!roomId) { alert('Enter a room code'); return; }
+            socket.emit('join_game', { name, room_id: roomId });
+        });
+
+        // Socket events
+        socket.on('game_created', (data) => {
+            if (data.waiting_for > 0) {
+                document.getElementById('waiting-overlay').style.display = 'flex';
+                document.getElementById('room-code-display').textContent = data.room_id;
+                document.getElementById('waiting-count').textContent =
+                    `Waiting for ${data.waiting_for} more player(s)...`;
+            } else {
+                window.location.href = `/game/${data.room_id}`;
+            }
+        });
+
+        socket.on('game_started', () => {
+            const roomCode = document.getElementById('room-code-display').textContent;
+            if (roomCode) {
+                window.location.href = `/game/${roomCode}`;
+            }
+        });
+
+        socket.on('joined_game', (data) => {
+            window.location.href = `/game/${data.room_id}`;
+        });
+
+        socket.on('player_joined', (data) => {
+            document.getElementById('waiting-count').textContent =
+                `${data.players}/${data.needed} players joined...`;
+        });
+
+        socket.on('error', (data) => {
+            alert(data.message);
+        });
+
+        // Particles background
+        function createParticles() {
+            const container = document.getElementById('particles');
+            const suits = ['♠', '♥', '♦', '♣', '♤', '♡', '♢', '♧'];
+            for (let i = 0; i < 30; i++) {
+                const p = document.createElement('span');
+                p.className = 'particle';
+                p.textContent = suits[Math.floor(Math.random() * suits.length)];
+                p.style.left = Math.random() * 100 + '%';
+                p.style.animationDelay = Math.random() * 20 + 's';
+                p.style.animationDuration = (15 + Math.random() * 20) + 's';
+                p.style.fontSize = (12 + Math.random() * 24) + 'px';
+                p.style.opacity = 0.05 + Math.random() * 0.15;
+                container.appendChild(p);
+            }
+        }
+        createParticles();
+    </script>
+</body>
+</html>

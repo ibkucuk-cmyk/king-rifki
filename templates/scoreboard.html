@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rıfkı - Scoreboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { overflow: auto; background: linear-gradient(135deg, #0a0e17, #1a1040); min-height: 100vh; }
+        .sb-page { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+        .sb-page h1 { text-align: center; font-size: 28px; margin-bottom: 24px; }
+        .sb-page .sb-table { font-size: 14px; }
+        .sb-page .sb-table th { padding: 12px 10px; font-size: 13px; }
+        .sb-page .sb-table td { padding: 10px; }
+        .sb-page .glass-card { padding: 24px; overflow-x: auto; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 6px; color: var(--accent);
+            text-decoration: none; font-weight: 600; margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sb-page">
+        <a href="javascript:history.back()" class="back-btn">← Back to Game</a>
+        <h1>📊 Rıfkı Scoreboard</h1>
+        <div class="glass-card" id="scoreboard-full"></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        const ROOM_ID = window.location.pathname.split('/').pop();
+        const socket = io();
+        socket.emit('get_scoreboard', { room_id: ROOM_ID });
+        socket.on('scoreboard_data', (data) => {
+            const el = document.getElementById('scoreboard-full');
+            if (!data.scoreboard || !data.scoreboard.length) {
+                el.innerHTML = '<p style="text-align:center;color:var(--text-dim);">No rounds yet.</p>';
+                return;
+            }
+            const names = data.players.map(p => p.name);
+            let h = '<table class="sb-table"><thead><tr><th>#</th><th>Declarer</th><th>Contract</th>';
+            names.forEach(n => h += `<th>${n}</th>`);
+            h += '</tr></thead><tbody>';
+            data.scoreboard.forEach(r => {
+                h += `<tr><td>${r.round}</td><td>${r.declarer}</td><td class="sb-contract">${r.contract_display||r.contract}</td>`;
+                for (let i = 0; i < 4; i++) {
+                    const s = r.scores[i]||0;
+                    const c = s>0?'sb-positive':s<0?'sb-negative':'sb-zero';
+                    h += `<td class="${c}">${s>0?'+':''}${s}</td>`;
+                }
+                h += '</tr>';
+            });
+            const last = data.scoreboard[data.scoreboard.length-1];
+            h += '<tr class="sb-totals"><td colspan="3"><strong>TOTAL</strong></td>';
+            for (let i=0;i<4;i++) {
+                const t=last.totals[i]||0;
+                const c=t>0?'sb-positive':t<0?'sb-negative':'sb-zero';
+                h += `<td class="${c}">${t>0?'+':''}${t}</td>`;
+            }
+            h += '</tr></tbody></table>';
+            el.innerHTML = h;
+        });
+    </script>
+</body>
+</html>
