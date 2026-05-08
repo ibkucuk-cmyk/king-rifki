@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Rıfkı Scoreboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
 :root{--bg:#0a0e17;--bg2:#111827;--border:rgba(255,255,255,.12);--text:#e8eaf0;--dim:#7a8294;--accent:#6c5ce7;--gold:#f9ca24;--red:#e74c3c;--green:#00b894;--font:'Outfit',system-ui,sans-serif}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -62,13 +64,42 @@ h1{font-size:42px;font-weight:800;text-align:center;margin-bottom:6px}
 .winner-tag{display:inline-block;padding:4px 12px;border-radius:8px;font-size:14px;font-weight:800;margin-left:8px}
 .winner-tag.w{background:rgba(0,184,148,.2);color:var(--green)}
 .winner-tag.l{background:rgba(231,76,60,.2);color:var(--red)}
-@media(max-width:900px){.count-cell input{font-size:20px}.contract-label{font-size:18px!important}.summary-row td{font-size:20px}.balance-row td{font-size:26px!important}.field input{font-size:18px}h1{font-size:32px}}
+.room-card{background:linear-gradient(135deg,rgba(108,92,231,.15),rgba(0,184,148,.1));border:2px solid var(--accent)}
+.room-code{font-size:48px;font-weight:800;letter-spacing:12px;color:var(--gold);text-align:center;margin:12px 0}
+.room-status{text-align:center;font-size:18px;padding:8px;border-radius:8px;margin:8px 0}
+.room-status.host{background:rgba(0,184,148,.15);color:var(--green)}
+.room-status.viewer{background:rgba(249,202,36,.15);color:var(--gold)}
+.room-status.offline{background:rgba(255,255,255,.05);color:var(--dim)}
+.viewer-badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:14px;font-weight:700;background:rgba(108,92,231,.2);color:var(--accent);margin:2px}
+@media(max-width:900px){.count-cell input{font-size:20px}.contract-label{font-size:18px!important}.summary-row td{font-size:20px}.balance-row td{font-size:26px!important}.field input{font-size:18px}h1{font-size:32px}.room-code{font-size:36px}}
 </style>
 </head>
 <body>
 <div class="page">
 <h1>🃏 Rıfkı Night</h1>
 <p class="sub">Scoreboard + Food Settlement</p>
+
+<!-- LIVE ROOM -->
+<div class="card room-card" id="roomCard">
+<h2>📡 Live Scoreboard</h2>
+<div id="roomOffline">
+<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+<button class="btn btn-green" onclick="hostRoom()">🏠 Host Game</button>
+<div style="display:flex;align-items:center;gap:8px"><input type="text" id="joinCode" maxlength="4" placeholder="Code" style="width:100px;padding:12px;background:rgba(0,0,0,.3);border:2px solid var(--border);border-radius:10px;color:var(--gold);font-family:var(--font);font-size:24px;font-weight:800;text-align:center;text-transform:uppercase" onfocus="this.select()"><button class="btn btn-purple" onclick="joinRoom()">Join</button></div>
+</div>
+<p style="text-align:center;color:var(--dim);font-size:16px;margin-top:8px">Host a game for friends to watch live, or join with a room code</p>
+</div>
+<div id="roomOnline" style="display:none">
+<div class="room-code" id="roomCodeDisplay"></div>
+<div class="room-status" id="roomStatusEl"></div>
+<div style="text-align:center;margin:8px 0"><span style="color:var(--dim);font-size:14px">Viewers: </span><span id="viewerList"></span></div>
+<div style="text-align:center;margin-top:8px">
+<button class="btn btn-red" onclick="leaveRoom()" style="font-size:16px;padding:10px 20px">🚪 Leave Room</button>
+<button class="btn btn-purple" id="reqControlBtn" onclick="requestControl()" style="display:none;font-size:16px;padding:10px 20px">🙋 Request Control</button>
+</div>
+<div id="controlRequests" style="margin-top:8px;text-align:center"></div>
+</div>
+</div>
 
 <!-- EXPENSES -->
 <div class="card" id="expenseCard">
@@ -393,6 +424,167 @@ enterR(rid,gi,cid);
 
 // Init
 buildGame(0);buildGame(1);load();
+
+// ─── Firebase Real-Time Sync ──────────────────
+const fbConfig={apiKey:"AIzaSyA1j_eoTE82QJGMHJIXnr2NfxYpOQbDAR4",authDomain:"king-rifki-scoreboard.firebaseapp.com",databaseURL:"https://king-rifki-scoreboard-default-rtdb.firebaseio.com",projectId:"king-rifki-scoreboard",storageBucket:"king-rifki-scoreboard.firebasestorage.app",messagingSenderId:"358191478834",appId:"1:358191478834:web:d55c45939ed91e0569e42b"};
+firebase.initializeApp(fbConfig);
+const db=firebase.database();
+
+let roomCode=null,isHost=false,roomRef=null,myId=Math.random().toString(36).substr(2,6);
+let syncPaused=false;
+
+function genCode(){return Math.floor(1000+Math.random()*9000).toString()}
+
+function hostRoom(){
+roomCode=genCode();isHost=true;
+roomRef=db.ref('rooms/'+roomCode);
+// Set initial data
+const data=getFullState();
+data.host=myId;data.viewers={};data.requests={};
+roomRef.set(data);
+// Listen for viewers and requests
+roomRef.child('viewers').on('value',snap=>{
+const v=snap.val()||{};
+document.getElementById('viewerList').innerHTML=Object.values(v).map(n=>`<span class="viewer-badge">${n}</span>`).join(' ')||'<span style="color:var(--dim)">none</span>';
+});
+roomRef.child('requests').on('child_added',snap=>{
+const req=snap.val();
+const el=document.getElementById('controlRequests');
+el.innerHTML+=`<div style="margin:4px"><span style="color:var(--gold)">${req.name} wants control</span> <button class="btn btn-green" style="font-size:14px;padding:6px 14px;margin:2px" onclick="grantControl('${snap.key}','${req.id}')">✓ Grant</button></div>`;
+});
+// Cleanup on disconnect
+roomRef.onDisconnect().remove();
+showOnline();
+}
+
+function joinRoom(){
+const code=document.getElementById('joinCode').value.trim();
+if(!code||code.length!==4){alert('Enter a 4-digit room code');return}
+roomRef=db.ref('rooms/'+code);
+roomRef.once('value',snap=>{
+if(!snap.exists()){alert('Room not found!');return}
+roomCode=code;isHost=false;
+const name=prompt('Your name:','Viewer')||'Viewer';
+roomRef.child('viewers/'+myId).set(name);
+roomRef.child('viewers/'+myId).onDisconnect().remove();
+// Listen for data changes
+roomRef.on('value',snap=>{
+const data=snap.val();
+if(!data){alert('Room closed!');leaveRoom();return}
+if(!isHost&&!syncPaused)applyFullState(data);
+});
+showOnline();
+});
+}
+
+function leaveRoom(){
+if(roomRef){
+if(isHost)roomRef.remove();
+else roomRef.child('viewers/'+myId).remove();
+roomRef.off();
+}
+roomCode=null;isHost=false;roomRef=null;
+document.getElementById('roomOffline').style.display='';
+document.getElementById('roomOnline').style.display='none';
+setEditable(true);
+}
+
+function requestControl(){
+if(!roomRef)return;
+const name=prompt('Your name:','Player')||'Player';
+roomRef.child('requests/'+myId).set({name,id:myId});
+alert('Control requested! Wait for host to approve.');
+}
+
+function grantControl(reqKey,reqId){
+if(!roomRef)return;
+// Transfer host
+roomRef.child('host').set(reqId);
+roomRef.child('requests/'+reqKey).remove();
+document.getElementById('controlRequests').innerHTML='';
+isHost=false;
+setEditable(false);
+document.getElementById('roomStatusEl').textContent='👁 Viewer (control transferred)';
+document.getElementById('roomStatusEl').className='room-status viewer';
+document.getElementById('reqControlBtn').style.display='inline-block';
+}
+
+function showOnline(){
+document.getElementById('roomOffline').style.display='none';
+document.getElementById('roomOnline').style.display='';
+document.getElementById('roomCodeDisplay').textContent=roomCode;
+if(isHost){
+document.getElementById('roomStatusEl').textContent='🏠 You are the HOST — share the code!';
+document.getElementById('roomStatusEl').className='room-status host';
+document.getElementById('reqControlBtn').style.display='none';
+setEditable(true);
+}else{
+document.getElementById('roomStatusEl').textContent='👁 Viewer — watching live';
+document.getElementById('roomStatusEl').className='room-status viewer';
+document.getElementById('reqControlBtn').style.display='inline-block';
+setEditable(false);
+}
+}
+
+function setEditable(canEdit){
+document.querySelectorAll('.count-cell input,.field input,.grid-table thead input').forEach(el=>{
+el.disabled=!canEdit;
+el.style.opacity=canEdit?1:0.7;
+});
+document.querySelectorAll('.enter-btn,.btn-red').forEach(el=>{
+if(!canEdit){el.style.pointerEvents='none';el.style.opacity='0.4'}
+else{el.style.pointerEvents='';el.style.opacity=''}
+});
+}
+
+// Override save to also push to Firebase
+const _origSave=save;
+save=function(){
+_origSave();
+if(isHost&&roomRef){
+const data=getFullState();data.host=myId;
+roomRef.update(data);
+}
+};
+
+function getFullState(){
+const st={enames:[],expenses:[],gnames:[[],[]],g:[[],[]]};
+for(let p=0;p<4;p++){st.enames.push(document.getElementById('ename'+p).value);st.expenses.push(document.getElementById('exp'+p).value)}
+for(let gi=0;gi<2;gi++){
+for(let p=0;p<4;p++)st.gnames[gi].push(document.getElementById('g'+gi+'_name'+p).value);
+Object.entries(games[gi].rows).forEach(([id,rd])=>{if(rd.locked)st.g[gi].push([id,rd.counts])});
+}
+return st;
+}
+
+function applyFullState(st){
+syncPaused=true;
+if(st.enames)st.enames.forEach((n,i)=>{document.getElementById('ename'+i).value=n||''});
+if(st.expenses)st.expenses.forEach((v,i)=>{document.getElementById('exp'+i).value=v||0});
+if(st.gnames)st.gnames.forEach((names,gi)=>{if(names)names.forEach((n,p)=>{const el=document.getElementById('g'+gi+'_name'+p);if(el)el.value=n||''})});
+updateExp();
+// Reset games and re-enter
+for(let gi=0;gi<2;gi++){
+ALL.forEach(c=>{
+const rid=`g${gi}_${c.id}`;const rd=games[gi].rows[c.id];
+rd.locked=false;rd.counts=[0,0,0,0];rd.scores=[0,0,0,0];
+const tr=document.getElementById('row-'+rid);if(tr)tr.classList.remove('row-locked');
+const btn=document.getElementById('btn-'+rid);if(btn){btn.textContent='Enter';btn.classList.remove('locked')}
+for(let p=0;p<4;p++){const inp=document.getElementById(rid+'_p'+p);if(inp){inp.value='';inp.classList.remove('err')}
+const sc=document.getElementById(rid+'_s'+p);if(sc)sc.textContent=''}
+});
+if(st.g&&st.g[gi]){
+st.g[gi].forEach(([cid,counts])=>{
+const rid=`g${gi}_${cid}`;
+for(let p=0;p<4;p++){const el=document.getElementById(rid+'_p'+p);if(el)el.value=counts[p]||''}
+enterR(rid,gi,cid);
+});
+}
+recalc(gi);
+}
+updateTabProgress();
+syncPaused=false;
+}
 </script>
 </body>
 </html>
